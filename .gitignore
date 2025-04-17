@@ -1,0 +1,5 @@
+note.txt
+.env
+*/Thread/Worker/Data/*
+*test*
+__pycache__
