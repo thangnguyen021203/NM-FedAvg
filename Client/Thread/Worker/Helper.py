@@ -95,3 +95,13 @@ class Helper:
         except (ConnectionResetError, ConnectionAbortedError) as e:
             print(f"Connection error: {e}")
             return b""
+
+    @staticmethod
+    def clear_gpu_memory():
+        """Clear GPU memory cache to free up resources"""
+        if torch.cuda.is_available():
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            

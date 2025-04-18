@@ -34,6 +34,15 @@ class Helper:
             return torch.device("cpu")
         
     @staticmethod
+    def clear_gpu_memory():
+        """Clear GPU memory cache to free up resources"""
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            # Print memory statistics after clearing
+            print(f"GPU memory after clearing - Allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB, "
+                  f"Reserved: {torch.cuda.memory_reserved(0) / 1024**2:.2f} MB")
+        
+    @staticmethod
     def build_graph(node_num: int, neighbor_num: int) -> dict[int: list]:
     
         # Please enhance the code to ensure there is no pair of nodes having more than or equal to 'limitation' same neighbors

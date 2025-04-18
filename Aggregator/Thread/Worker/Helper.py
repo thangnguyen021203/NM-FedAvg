@@ -117,3 +117,12 @@ class Helper:
         except (KeyError, FileNotFoundError):
             # Fall back to CPU if setting not found or file not accessible
             return torch.device("cpu")
+
+    @staticmethod
+    def clear_gpu_memory():
+        """Clear GPU memory cache to free up resources"""
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            # Print memory statistics after clearing
+            print(f"GPU memory after clearing - Allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB, "
+                  f"Reserved: {torch.cuda.memory_reserved(0) / 1024**2:.2f} MB")

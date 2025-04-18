@@ -18,10 +18,12 @@ class CNNModel_MNIST(nn.Module):
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10)
-        self.to(self.device)
-        print(f"Model initialized on {self.device}")
-        
+
     def forward(self, x):
+        # Move model to device only during forward pass if it's not already there
+        if next(self.parameters()).device != self.device:
+            self.to(self.device)
+            
         x = x.to(self.device)
         x = self.conv1(x)
         x = self.max_pool1(x)

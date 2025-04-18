@@ -60,11 +60,18 @@ class Manager:
         self.received_data = 0
         # Model
         self.global_model : CNNModel_MNIST | None = model_type()
+        # Move model to CPU to save GPU memory initially
+        if self.device.type == 'cuda':
+            self.global_model.cpu()
         self.model_type = model_type
         self.global_parameters = None
 
         # Client data
         self.client_list = None
+        
+        # Clear GPU memory after initialization
+        if self.device.type == 'cuda':
+            Helper.clear_gpu_memory()
 
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:
@@ -140,20 +147,25 @@ class Manager:
     @Helper.timing
     def aggregate(self) -> None:
         """Aggregate model parameters from all clients using weighted FedAvg"""
-        # Create tensor on CPU first, then move to device
+        # Perform aggregation on CPU to minimize GPU memory usage
         total_parameters = torch.zeros(len(self.client_list[0].local_parameters), dtype=torch.float32)
         
         for client in self.client_list:
-            # Convert numpy parameters to torch tensor and move to device
+            # Keep all tensors on CPU during aggregation
             client_tensor = torch.tensor(client.local_parameters, dtype=torch.float32)
             total_parameters += client_tensor * client.local_datanum
 
         total_data_num = sum([client.local_datanum for client in self.client_list])
-        # Perform aggregation calculation
+        # Perform aggregation calculation on CPU
         self.global_parameters = (total_parameters / total_data_num).numpy()
         
-        # Convert aggregated parameters to tensor and load into model
-        params_tensor = torch.tensor(self.global_parameters, dtype=torch.float32, device=self.device)
+        # Load parameters into model while keeping on CPU
+        self.global_model.cpu()
+        params_tensor = torch.tensor(self.global_parameters, dtype=torch.float32)
         vector_to_parameters(params_tensor, self.global_model.parameters())
+        
+        # Only clear GPU memory if it was used
+        if self.device.type == 'cuda':
+            Helper.clear_gpu_memory()
 
         print("===================================\n")
