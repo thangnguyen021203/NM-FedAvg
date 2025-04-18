@@ -28,8 +28,9 @@ def commander_thread(manager: Manager):
             manager.set_flag(manager.FLAG.RE_REGISTER)
 
         elif command == 'cls':
-            os.system('cls')
-        
+            # os.system('cls')
+            os.system('clear' if os.name != 'nt' else 'cls')
+            
         elif command == 'restart':
             os.execv(sys.executable, ['python'] + sys.argv)
 

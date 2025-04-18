@@ -41,9 +41,12 @@ class Manager:
         class RE_REGISTER:
             # When commander wants to re-register
             pass
-
-
+    
     def __init__(self, model_type: type):
+        # Device
+        self.device = Helper.get_device()
+        print(f"Aggregator Manager initialized with device: {self.device}")
+        
         # Communication
         self.host = "localhost"
         self.port = Helper.get_available_port()
@@ -62,7 +65,7 @@ class Manager:
 
         # Client data
         self.client_list = None
-    
+
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:
             return Manager.FLAG.NONE
@@ -83,7 +86,8 @@ class Manager:
 
     def get_global_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
         if not self.global_model is None:
-            return parameters_to_vector(self.global_model.parameters()).detach().numpy()
+            # Move parameters to CPU before converting to numpy array
+            return parameters_to_vector(self.global_model.parameters()).detach().cpu().numpy()
         else:
             return self.global_parameters
 
@@ -101,7 +105,9 @@ class Manager:
     def receive_trained_data(self, client: Client_info, data_number: int, parameters: numpy.ndarray) -> None:
         """Receive trained data from a client"""
         client.set_trained_data(data_number, parameters)
-        
+        self.received_data += 1
+        print(f"Received trained data from client {client.round_ID} ({self.received_data}/{len(self.client_list)} clients)")
+
     def end_timer(self):
         """End the timer for collecting client updates"""
         self.timeout = True
@@ -130,19 +136,24 @@ class Manager:
         self.checker = threading.Thread(target=self.the_checker)
         self.checker.daemon = True
         self.checker.start()
-            
+
     @Helper.timing
     def aggregate(self) -> None:
+        """Aggregate model parameters from all clients using weighted FedAvg"""
+        # Create tensor on CPU first, then move to device
+        total_parameters = torch.zeros(len(self.client_list[0].local_parameters), dtype=torch.float32)
         
-        total_parameters = [0 for _ in range(len(self.client_list[0].local_parameters))]
-
         for client in self.client_list:
-            for idx in range(len(total_parameters)):
-                total_parameters[idx] += client.local_parameters[idx]*client.local_datanum
+            # Convert numpy parameters to torch tensor and move to device
+            client_tensor = torch.tensor(client.local_parameters, dtype=torch.float32)
+            total_parameters += client_tensor * client.local_datanum
 
         total_data_num = sum([client.local_datanum for client in self.client_list])
-        self.global_parameters = [param/total_data_num for param in total_parameters]
-        params_tensor = torch.tensor(self.global_parameters, dtype=torch.float32)
+        # Perform aggregation calculation
+        self.global_parameters = (total_parameters / total_data_num).numpy()
+        
+        # Convert aggregated parameters to tensor and load into model
+        params_tensor = torch.tensor(self.global_parameters, dtype=torch.float32, device=self.device)
         vector_to_parameters(params_tensor, self.global_model.parameters())
 
         print("===================================\n")

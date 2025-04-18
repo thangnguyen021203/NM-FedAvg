@@ -38,7 +38,8 @@ def commander_thread(manager: Manager):
             print('Successfully clear aggregator')
 
         elif command == 'cls':
-            os.system('cls')
+            # os.system('cls')
+            os.system('clear' if os.name != 'nt' else 'cls')
         
         elif command == 'restart':
             os.execv(sys.executable, ['python'] + sys.argv)

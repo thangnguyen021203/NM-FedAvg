@@ -113,7 +113,6 @@ class Manager:
     def start_train(self):
         self.trainer.set_dataset_ID(self.round_ID, self.round_number)
         self.trainer.train()
-        self.trainer.test()
 
     def test_aggregated_model(self) -> float:
         """Test received aggregated model on client's test dataset and return accuracy"""

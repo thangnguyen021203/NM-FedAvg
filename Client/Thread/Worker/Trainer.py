@@ -10,6 +10,8 @@ from Thread.Worker.Helper import Helper
 class Trainer:
 
     def __init__(self, model_type: type):
+        self.device = Helper.get_device()
+        print(f"Trainer initialized with device: {self.device}")
         self.local_model : CNNModel_MNIST = model_type()
         self.dataset_type = model_type.__name__.split('_')[-1]
         self.batch_size = 64
@@ -18,7 +20,7 @@ class Trainer:
         # self.optimizer = self.local_model.optimizer
         # self.lossf = self.local_model.loss
         self.get_parameters()
-
+    
     def set_dataset_ID(self, ID: int, round_number: int):
         self.ID = ID
 
@@ -43,7 +45,6 @@ class Trainer:
         self.test_data_num = self.root_test_data.__len__() // 100
         self.self_test_data = Subset(self.root_test_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.test_data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.test_data_num))
 
-
     @Helper.timing
     def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
         # Create Models directory if it doesn't exist
@@ -51,14 +52,14 @@ class Trainer:
         if not os.path.exists(models_dir):
             os.makedirs(models_dir)
             
-        tensor = torch.tensor(parameters, dtype=torch.float32, requires_grad=True)
+        tensor = torch.tensor(parameters, dtype=torch.float32, requires_grad=True, device=self.device)
         torch.save(self.local_model, f"{models_dir}/{round_ID}_old.pth")
         vector_to_parameters(tensor, self.local_model.parameters())
         torch.save(self.local_model, f"{models_dir}/{round_ID}_new.pth")
 
     def get_parameters(self) -> numpy.ndarray[numpy.float32]:
-        return parameters_to_vector(self.local_model.parameters()).detach().numpy()
-
+        return parameters_to_vector(self.local_model.parameters()).detach().cpu().numpy()
+        
     def __get_data__(self, data: Subset) -> TensorDataset:
         
         if self.root_dataset == torchvision.datasets.MNIST:
@@ -89,6 +90,7 @@ class Trainer:
             total = 0
 
             for data, target in tqdm(train_loader, unit=" data", leave=False):
+                data, target = data.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.local_model(data)
                 # loss = self.lossf(output, target)
@@ -97,7 +99,7 @@ class Trainer:
                 self.optimizer.step()
 
                 running_loss += loss.item() * data.size(0)
-                _, predicted = torch.max(output,1)
+                _, predicted = torch.max(output, 1)
                 correct += (predicted == target).sum().item()
                 total += target.size(0)
 
@@ -106,7 +108,7 @@ class Trainer:
             epoch_acc = correct / total
             print(f"Epoch [{epoch_idx+1}/{self.epoch_num}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
-    @torch.no_grad
+    @torch.no_grad()
     def test(self):
         test_loader = DataLoader(self.__get_test_data__())
         self.local_model.eval()
@@ -115,6 +117,7 @@ class Trainer:
         correct = 0
 
         for data, target in tqdm(test_loader, unit=" data", leave=False):
+            data, target = data.to(self.device), target.to(self.device)
             output = self.local_model(data)
             # test_loss += self.lossf(output, target).item()
             test_loss += F.nll_loss(output, target, reduction="sum").item()
@@ -124,21 +127,3 @@ class Trainer:
         accuracy = 100. * correct / len(test_loader.dataset)
         print(f'[Evaluation]: Test Loss = {test_loss:.4f}, Accuracy = {correct}/{len(test_loader.dataset)} ({accuracy:.0f}%)')
         return float(accuracy)
-
-
-    # def train_model(self):
-
-    #     train_loader = DataLoader(self.__get_train_data__(), batch_size = self.batch_size)
-    #     test_loader = DataLoader(self.__get_test_data__())
-        
-    #     for epoch_idx in range(self.epoch_num):  
-    #         self.local_model.train()
-    #         self.train(train_loader)
-    #         epoch_idx += 1
-    #         self.local_model.eval()
-    #         self.test(test_loader, epoch_idx)
-
-    # def test_model(self):
-    #     test_loader = DataLoader(self.__get_test_data__())
-    #     self.local_model.eval()
-    #     self.test(test_loader, epoch_idx=0)
