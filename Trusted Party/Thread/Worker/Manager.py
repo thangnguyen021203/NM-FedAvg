@@ -52,6 +52,9 @@ class Manager():
         class STOP:
             # Used to indicate situation that needs process stopping
             pass
+        class TRAINING_COMPLETE:
+            # Used to indicate training is complete
+            pass
 
     def __init__(self):
         # FL parameters
@@ -67,10 +70,10 @@ class Manager():
         self.stop_message = ""
         # Round parameters
         self.round_manager : Round_Manager = None
-        # Model performance tracking
-        self.last_accuracy = 0.0
-        self.convergence_threshold = 0.05  # 0.05% improvement threshold
-        self.target_accuracy = 90.0  # 90% accuracy target
+        # Model accuracy tracking
+        self.client_accuracies = {}  # Dict to store client_round_ID -> accuracy
+        self.accuracy_threshold = Helper.get_env_variable("ACCURACY_THRESHOLD") 
+        self.completion_threshold = Helper.get_env_variable("CLIENT_PERCENT_THRESHOLD") 
 
     def stop(self, message: str):
         self.stop_message = message
@@ -133,76 +136,42 @@ class Manager():
             return_list.append(chosen_one)
         return return_list
     
-    def test_aggregated_model(self) -> float:
-        """
-        Request the aggregator to test the global model on the whole test dataset
-        and return the accuracy for convergence checking
-        """
-        import asyncio
-        from Thread.Worker.Helper import Helper
+    def record_client_accuracy(self, client_round_id: int, accuracy: float) -> None:
+        """Record a client's accuracy for the current round"""
+        self.client_accuracies[client_round_id] = accuracy
+        print(f"Received accuracy from client {client_round_id}: {accuracy:.2f}%")
         
-        async def request_model_test():
-            try:
-                # Connect to aggregator
-                reader, writer = await asyncio.open_connection(
-                    self.aggregator_info.host, 
-                    self.aggregator_info.port
-                )
-                _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
-                
-                # Send TEST_MODEL command
-                await Helper.send_data(writer, "TEST_MODEL")
-                
-                # Receive test results
-                data = await Helper.receive_data(reader)
-                if data.startswith(b"ACCURACY "):
-                    accuracy = float(data[9:])
-                    print(f"Global model accuracy: {accuracy:.2f}%")
-                    writer.close()
-                    return accuracy
-                else:
-                    print(f"Unexpected response from aggregator: {data}")
-                    writer.close()
-                    return 0.0
-                    
-            except Exception as e:
-                print(f"Error testing aggregated model: {e}")
-                import traceback
-                traceback.print_exc()
-                return 0.0
-        
-        # Run the async function and return the result
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        accuracy = loop.run_until_complete(request_model_test())
-        loop.close()
-        return accuracy
+        # Check if all clients have reported their accuracy
+        if len(self.client_accuracies) == len(self.round_manager.client_list):
+            self.evaluate_model_performance()
     
-    def check_convergence(self, current_accuracy: float) -> bool:
-        """
-        Check if the model has converged based on:
-        1. Accuracy exceeding target (90%)
-        2. Improvement less than threshold (0.05%)
-        """
-        # Calculate accuracy improvement from previous round
-        accuracy_improvement = current_accuracy - self.last_accuracy
+    def evaluate_model_performance(self) -> None:
+        """Evaluate if training should complete or continue to next round"""
+        if not self.client_accuracies:
+            print("No accuracy data available for evaluation")
+            return
+            
+        # Count clients meeting the accuracy threshold
+        clients_meeting_threshold = sum(1 for acc in self.client_accuracies.values() if acc >= self.accuracy_threshold)
+        total_clients = len(self.client_accuracies)
+        percentage_meeting_threshold = clients_meeting_threshold / total_clients
         
-        print(f"Current accuracy: {current_accuracy:.2f}%, Previous: {self.last_accuracy:.2f}%")
-        print(f"Improvement: {accuracy_improvement:.3f}%")
+        print(f"\n----- Model Performance Evaluation -----")
+        print(f"Round {self.current_round} - Clients meeting {self.accuracy_threshold}% threshold: "
+              f"{clients_meeting_threshold}/{total_clients} ({percentage_meeting_threshold*100:.1f}%)")
         
-        # Update the last_accuracy for the next round
-        self.last_accuracy = current_accuracy
-        
-        # Check if we've reached our convergence criteria
-        if current_accuracy >= self.target_accuracy and accuracy_improvement < self.convergence_threshold:
-            print(f"\n===== CONVERGENCE REACHED =====")
-            print(f"Accuracy: {current_accuracy:.2f}% (Target: {self.target_accuracy:.2f}%)")
-            print(f"Improvement: {accuracy_improvement:.3f}% (Threshold: {self.convergence_threshold:.3f}%)")
-            print(f"Stopping federated learning process")
-            print(f"================================\n")
-            return True
-        
-        return False
+        if percentage_meeting_threshold >= self.completion_threshold:
+            print(f"Training complete! {percentage_meeting_threshold*100:.1f}% clients "
+                  f"have accuracy >= {self.accuracy_threshold}%")
+            # Set flag to complete training
+            self.set_flag(self.FLAG.TRAINING_COMPLETE)
+        else:
+            print(f"Training will continue to next round. Only {percentage_meeting_threshold*100:.1f}% "
+                  f"clients met the accuracy threshold (target: {self.completion_threshold*100:.1f}%)")
+            # Reset accuracy tracking for next round
+            self.client_accuracies = {}
+            # Set flag to start a new round
+            self.set_flag(self.FLAG.START_ROUND)
 
 class Round_Manager():
 

@@ -14,7 +14,7 @@ class Trainer:
         self.dataset_type = model_type.__name__.split('_')[-1]
         self.batch_size = 64
         self.epoch_num = 3
-        self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.1, momentum=0.5)
+        self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
         # self.optimizer = self.local_model.optimizer
         # self.lossf = self.local_model.loss
         self.get_parameters()
@@ -34,13 +34,13 @@ class Trainer:
         # self.data_num = self.root_train_data.__len__() // ATTEND_CLIENTS
         # self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
 
-        self.data_num = self.root_train_data.__len__() // 10
+        self.data_num = self.root_train_data.__len__() // 100
         self.self_train_data = Subset(self.root_train_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.data_num))
 
         # self.test_data_num = self.root_test_data.__len__() // ATTEND_CLIENTS
         # self.self_test_data = Subset(self.root_test_data, range(self.ID * self.test_data_num, (self.ID + 1) * self.test_data_num))
 
-        self.test_data_num = self.root_test_data.__len__() // 10
+        self.test_data_num = self.root_test_data.__len__() // 100
         self.self_test_data = Subset(self.root_test_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.test_data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.test_data_num))
 
 
@@ -121,7 +121,9 @@ class Trainer:
             pred = output.data.max(1, keepdim = True)[1]
             correct += pred.eq(target.view_as(pred)).long().cpu().sum()
         test_loss /= len(test_loader.dataset)
-        print(f'[Evaluation]: Test Loss = {test_loss:.4f}, Accuracy = {correct}/{len(test_loader.dataset)} ({100. * correct / len(test_loader.dataset):.0f}%)')
+        accuracy = 100. * correct / len(test_loader.dataset)
+        print(f'[Evaluation]: Test Loss = {test_loss:.4f}, Accuracy = {correct}/{len(test_loader.dataset)} ({accuracy:.0f}%)')
+        return float(accuracy)
 
 
     # def train_model(self):

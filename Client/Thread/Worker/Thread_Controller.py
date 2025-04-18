@@ -90,3 +90,30 @@ async def send_LOCAL_MODEL(manager: Manager):
     else:
         print(f"Trusted party returns {data}")
     writer.close()
+
+
+
+###########################################################################################################
+
+
+
+# Client sends model accuracy to Trusted Party
+async def send_MODEL_ACCURACY(manager: Manager):
+
+    reader, writer = await asyncio.open_connection(TRUSTED_PARTY_HOST, TRUSTED_PARTY_PORT)
+    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+
+    # Test the aggregated model
+    accuracy = manager.test_aggregated_model()
+    
+    # MODEL_ACCURACY <round_ID> <accuracy>
+    data = f"MODEL_ACCURACY {manager.round_ID} {accuracy}"
+    await Helper.send_data(writer, data)
+    
+    # SUCCESS (just an acknowledgment)
+    data = await Helper.receive_data(reader)
+    if data == b"SUCCESS":
+        print(f"Successfully sent model accuracy to the Trusted party")
+    else:
+        print(f"Trusted party returns {data}")
+    writer.close()

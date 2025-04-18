@@ -65,7 +65,7 @@ class Helper:
 
     @staticmethod
     def get_env_variable(name: str) -> int | str:
-        return json.load(open("../.env", "r", encoding='UTF-8'))[name]
+        return json.load(open("../env.env", "r", encoding='UTF-8'))[name]
 
     @staticmethod
     def get_available_port() -> int:

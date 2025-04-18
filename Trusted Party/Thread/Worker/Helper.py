@@ -66,7 +66,7 @@ class Helper:
     
     @staticmethod
     def get_env_variable(name: str) -> int | str:
-        return json.load(open("../.env", "r", encoding='UTF-8'))[name]
+        return json.load(open("../env.env", "r", encoding='UTF-8'))[name]
     
     @staticmethod
     async def send_data(writer: asyncio.StreamWriter | telnetlib3.TelnetWriter, data: str | bytes) -> None:

@@ -1,6 +1,7 @@
 import asyncio, telnetlib3, struct, numpy
 from Thread.Worker.Manager import Manager, Client_info
 from Thread.Worker.Helper import Helper
+from Thread.Worker.Thread_Controller import send_MODEL_ACCURACY
 
 def listener_thread(manager: Manager):
     
@@ -71,7 +72,9 @@ def listener_thread(manager: Manager):
             await Helper.send_data(writer, "SUCCESS")
             print(f"Successfully receive global models from the Aggregator")
             writer.close()
-            manager.trainer.test()
+            
+            # Test the model and send accuracy to Trusted Party
+            asyncio.ensure_future(send_MODEL_ACCURACY(manager))
         else:
             await Helper.send_data(writer, "Operation not allowed!")
         

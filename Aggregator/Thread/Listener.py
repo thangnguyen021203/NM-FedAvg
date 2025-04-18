@@ -57,10 +57,6 @@ def listener_thread(manager: Manager):
             if not manager.timeout:
                 client = manager.get_client_by_id(client_round_ID)
                 
-                # Test the received model using the client's test dataset
-                print(f"Testing received model from client {client_round_ID}...")
-                accuracy = manager.test_client_model(client_round_ID, local_model_parameters)
-                
                 # Store the model parameters
                 manager.receive_trained_data(client, data_number, local_model_parameters)
                 manager.received_data += 1
@@ -75,22 +71,6 @@ def listener_thread(manager: Manager):
                 data = f"OUT_OF_TIME {manager.timeout_time}"
                 await Helper.send_data(writer, data)
                 print(f"Client {client_round_ID} has been late for the timeout of {manager.timeout_time}!")
-
-        # Trusted Party requests testing of the aggregated model
-        elif b'TEST_MODEL' == data:
-            print("Received request to test aggregated model from Trusted Party")
-            
-            # Only test if we have a global model
-            if manager.global_model is not None:
-                # Test the model on the whole dataset
-                accuracy = manager.test_aggregated_model_on_whole_dataset()
-                
-                # Send accuracy result back to Trusted Party
-                await Helper.send_data(writer, f"ACCURACY {accuracy}")
-                print(f"Sent model accuracy ({accuracy:.2f}%) to Trusted Party")
-            else:
-                await Helper.send_data(writer, "ERROR No global model available")
-                print("Error: No global model available for testing")
 
         else:
             await Helper.send_data(writer, "Operation not allowed!")

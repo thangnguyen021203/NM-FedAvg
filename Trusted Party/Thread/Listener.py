@@ -70,6 +70,21 @@ def listener_thread(manager: Manager):
             else:
                 print(f"Client {host}:{port} returns {data}")
             writer.close()
+
+        # Client sends model accuracy to Trusted Party
+        elif b'MODEL_ACCURACY' == data[:14]:
+            
+            # MODEL_ACCURACY <client_round_id> <accuracy>
+            client_round_id, accuracy = data[15:].split(b' ', 1)
+            client_round_id = int(client_round_id)
+            accuracy = float(accuracy)
+            
+            # Record the client's accuracy
+            manager.record_client_accuracy(client_round_id, accuracy)
+            
+            # Send acknowledgment (no information about round training status)
+            await Helper.send_data(writer, "SUCCESS")
+            writer.close()
         
         else:
             await Helper.send_data(writer, "Operation not allowed!")
