@@ -59,7 +59,6 @@ def listener_thread(manager: Manager):
                 
                 # Store the model parameters
                 manager.receive_trained_data(client, data_number, local_model_parameters)
-                manager.received_data += 1
                 
                 data = f"SUCCESS"
                 await Helper.send_data(writer, data)
