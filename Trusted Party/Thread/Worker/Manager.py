@@ -74,6 +74,8 @@ class Manager():
         self.client_accuracies = {}  # Dict to store client_round_ID -> accuracy
         self.accuracy_threshold = Helper.get_env_variable("ACCURACY_THRESHOLD") 
         self.completion_threshold = Helper.get_env_variable("CLIENT_PERCENT_THRESHOLD") 
+        # Track participated clients in each round
+        self.participated_clients = set()  # Set of client IDs that participated in the current round
 
     def stop(self, message: str):
         self.stop_message = message
@@ -128,14 +130,42 @@ class Manager():
     def choose_clients(self, client_num: int) -> list[Client_info]:
         if client_num > len(self.client_list):
             client_num = len(self.client_list)
+        
+        # Before selecting clients, update their selection points based on previous participation
+        if self.current_round > 0:  # Only update points after the first round
+            self.update_client_selection_points()
+            
         return_list = list()
         client_list = deepcopy(self.client_list)
+        
+        # Print client selection probabilities for this round
+        print(f"\n----- Round {self.current_round} Client Selection Probabilities -----")
+        for client in client_list:
+            print(f"Client ID: {client.ID} - Probability points: {client.choose_possibility}")
+        print("--------------------------------------------------------\n")
+        
         for i in range(client_num):
             chosen_one = random.choices(client_list, weights=[max(client.choose_possibility, 0) for client in client_list])[0]
             client_list.remove(chosen_one)
             return_list.append(chosen_one)
+            
+        # Store the IDs of selected clients for this round
+        self.participated_clients = {client.ID for client in return_list}
+        
         return return_list
-    
+        
+    def update_client_selection_points(self):
+        """Update client selection points based on participation in the previous round"""
+        for client in self.client_list:
+            if client.ID in self.participated_clients:
+                # Client participated in the previous round: -25 points
+                client.choose_possibility -= 25
+                print(f"Client {client.ID} participated in previous round: -60 points (now {client.choose_possibility})")
+            else:
+                # Client did not participate in the previous round: +25 points
+                client.choose_possibility += 25
+                print(f"Client {client.ID} did not participate in previous round: +20 points (now {client.choose_possibility})")
+            
     def record_client_accuracy(self, client_round_id: int, accuracy: float) -> None:
         """Record a client's accuracy for the current round"""
         self.client_accuracies[client_round_id] = accuracy

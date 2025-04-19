@@ -10,7 +10,6 @@ class CNNModel_MNIST(nn.Module):
     
     def __init__(self):
         super().__init__()
-        self.device = Helper.get_device()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.max_pool1 = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
@@ -20,11 +19,6 @@ class CNNModel_MNIST(nn.Module):
         self.fc2 = nn.Linear(50, 10)
 
     def forward(self, x):
-        # Move model to device only during forward pass if it's not already there
-        if next(self.parameters()).device != self.device:
-            self.to(self.device)
-            
-        x = x.to(self.device)
         x = self.conv1(x)
         x = self.max_pool1(x)
         x = F.relu(x)

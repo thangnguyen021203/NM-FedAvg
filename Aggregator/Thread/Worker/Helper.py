@@ -101,28 +101,3 @@ class Helper:
         data = await reader.readexactly(data_len)
         return data
 
-    @staticmethod
-    def get_device():
-        """Return the best available device based on env setting (CUDA GPU if available and enabled, otherwise CPU)"""
-        try:
-            use_gpu = Helper.get_env_variable("USE_GPU")
-            if use_gpu and torch.cuda.is_available():
-                device = torch.device("cuda")
-                print(f"GPU device available: {torch.cuda.get_device_name(0)}")
-                print(f"GPU memory allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB")
-                print(f"GPU memory reserved: {torch.cuda.memory_reserved(0) / 1024**2:.2f} MB")
-                return device
-            else:
-                return torch.device("cpu")
-        except (KeyError, FileNotFoundError):
-            # Fall back to CPU if setting not found or file not accessible
-            return torch.device("cpu")
-
-    @staticmethod
-    def clear_gpu_memory():
-        """Clear GPU memory cache to free up resources"""
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            # Print memory statistics after clearing
-            print(f"GPU memory after clearing - Allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB, "
-                  f"Reserved: {torch.cuda.memory_reserved(0) / 1024**2:.2f} MB")

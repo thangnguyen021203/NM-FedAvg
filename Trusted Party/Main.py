@@ -8,7 +8,7 @@ import os
 def main():
 
     manager : Manager = Manager()
-    os.system('cls')
+    os.system('clear' if os.name != 'nt' else 'cls')
 
     # Create a server listening and return needed information
     listener = threading.Thread(target=listener_thread, args=(manager, ), daemon=True)
